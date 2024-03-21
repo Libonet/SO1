@@ -51,7 +51,7 @@ int main(){
         break;
       case 0: // hijo
         // if (strcmp(command[tokenCount-3], ">")==0){}
-        execv(command[0], command);
+        execvp(command[0], command);
         break;
       default: // padre
         wait(&wstatus);

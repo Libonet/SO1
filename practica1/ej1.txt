@@ -1,0 +1,7 @@
+el comando echo "$$" devuelve el PID del proceso actual (en este caso, de la shell (bash))
+
+el comando env imprime todas las variables de entorno, permite modificar variables de entorno, y ejecutar una orden
+
+el comando ps muestra los procesos en ejecucion
+
+el comando tree imprime en forma de arbol el directorio actual

@@ -1,0 +1,6 @@
+getchar() no es una llamada al sistema. Es una función definida en el header "stdio.h".
+Entre las llamadas al sistema (que podemos encontrar en man) no se encuentra a getchar()
+
+ungetc(int c, FILE *stream) empuja a "c" de vuelta a "stream", casteado como unsigned char, donde
+está disponible para siguientes operaciones de lectura. las letras empujadas van a ser retornadas en orden
+inverso. Sólo se garantiza un pushback.

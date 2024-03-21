@@ -1,0 +1,28 @@
+a) Luego de cerrar stdout, se realiza la llamada write, pero no escribe nada y devuelve -1,
+porque el file descriptor que se le pasa es inválido (ya que se cerró el proceso)
+
+b) Pasa lo mismo que en el a)
+
+c) Luego de usar dup() para duplicar el stdout, y de cerrar la copia, podemos seguir imprimiendo en pantalla
+ya que sólo se cerró al file descriptor duplicado
+
+d) Luego de llamar a fork(), el valor de getpid() para el hijo va a ser el siguiente process id disponible
+(No necesariamente el siguiente al padre), y el del padre sigue siendo el mismo.
+En cambio, al llamar a exec(), el valor de getpid() no cambia, 
+ya que se asigna el mismo process id al nuevo proceso
+
+e) En la tabla de procesos, el hijo aparece como <defunct> (o zombie). Sigue existiendo mientras el padre
+siga en ejecución, y si el padre no lo espera para cuando finaliza, se convierte en "zombie".
+Una vez finalizado el proceso padre, sin haber esperado al hijo, init(1) lo espera. 
+
+f) No aumenta el uso de memoria. Por lo tanto, mientras esta memoria no se use,
+no se ve afectada la memoria libre para el sistema
+
+g) Cuando se llama a fork no pasa nada. En este caso se duplica al proceso padre, 
+y cada uno hace un uso independiente de la memoria
+En el caso del exec(), dependiendo del programa que se ejecute va a cambiar el uso de memoria, 
+y si es exitoso, se termina el proceso original.
+
+h) En fork, se mantienen. En exec, no se mantienen
+
+i) Sí, se puede implementar utilizando la llamada al sistema "chdir".

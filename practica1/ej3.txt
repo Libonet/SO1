@@ -1,0 +1,4 @@
+Pienso que está implementado con un bucle infinito que envía "y" a la entrada de "./installer"
+
+El uso de CPU del proceso yes es bajo.
+Probablemente porque se bloquea hasta que "./installer" requiera una entrada

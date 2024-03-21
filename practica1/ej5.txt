@@ -1,0 +1,2 @@
+free() no es una llamada al sistema. Es una función definida en el header "stdlib.h".
+Entre las llamadas al sistema (que podemos encontrar en man) no se encuentra a free()

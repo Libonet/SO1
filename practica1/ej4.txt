@@ -1,0 +1,2 @@
+Durante la ejecución del proceso, esa memoria va a quedar asignada para el usuario.
+Una vez finalizada la ejecución, se devuelve todo el espacio de memoria al sistema operativo.
