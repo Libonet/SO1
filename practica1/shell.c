@@ -47,8 +47,8 @@ int main(){
 
     switch(fork()){
       case -1:
-        // handle error
-        break;
+        perror("fork failed? wtf\n");
+        exit(-1);
       case 0: // hijo
         // if (strcmp(command[tokenCount-3], ">")==0){}
         execvp(command[0], command);
