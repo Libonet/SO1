@@ -6,7 +6,7 @@
 
 #define BSIZE 1024
 
-void removeEnter(char** buffer){
+void remove_enter(char** buffer){
   int i=0;
   char c;
   for (; (c=(*buffer)[i]); i++) {
@@ -25,7 +25,7 @@ int main(){
   while (1) {
     tokenCount = 0;
     fgets(buffer, BSIZE, stdin);
-    removeEnter(&buffer);
+    remove_enter(&buffer);
     token = strtok(buffer, " ");
     while (exitSignal != 1){
       if (token == NULL){
