@@ -157,18 +157,47 @@ int shell_start_process(char** args, int* next_pipe, int* wpid){
 }
 
 int shell_execute(char** args, int* next_pipe, int* wpid){
+  int retorno=1, fd=-1, stdoutBackup=-1;
   if (args[0] == NULL) {
     // Se ingreso un comando vacio
     return 1;
   }
 
+  for (int i = 0; args[i] != NULL; i++)
+  {
+    if (strcmp(args[i], ">")==0){
+      if (args[i+1] != NULL && args[i+2]==NULL){
+        args[i] = NULL;
+
+        int fd = open(args[i+1], O_CREAT | O_WRONLY | O_TRUNC, 0644);
+        if (fd != -1){
+          stdoutBackup = dup(STDOUT_FILENO);
+          dup2(fd, STDOUT_FILENO);
+        } else{
+          fprintf(stderr, "shell: failure to open %s\n", args[i+1]);
+        }
+      } else{
+        fprintf(stderr, "shell: syntax error near >\n");
+      }
+    }
+  }
+  
+
   for (int i = 0; i < shell_num_builtins(); i++) {
     if (strcmp(args[0], builtin_str[i]) == 0) {
-      return (*builtin_func[i])(args);
+      retorno = (*builtin_func[i])(args);
+      if (fd != -1){
+        dup2(stdoutBackup, fd);
+      }
+      return retorno;
     }
   }
 
-  return shell_start_process(args, next_pipe, wpid);
+  retorno = shell_start_process(args, next_pipe, wpid);
+  if (fd != -1){
+    dup2(stdoutBackup, fd);
+  }
+  return retorno;
 }
 
 int shell_multiple_execute(commands comms){
@@ -278,7 +307,7 @@ void shell_loop(void){
   int status = 1, wpid=0;
 
   do {
-    printf("> "); // podria mostrar distintas cosas teniendo en cuenta la configuracion
+    printf("$ "); // podria mostrar distintas cosas teniendo en cuenta la configuracion
     line = shell_get_line();
     args = shell_split_line(line);
     comms = shell_separate_commands(args);
