@@ -302,6 +302,10 @@ int shell_multiple_execute(commands comms){
   char** command;
   int *next_pipe = malloc(sizeof(int)*2);
   int* wpid = malloc(sizeof(int)*comms.commandCount);
+  for (int i = 0; i < comms.commandCount; i++){
+    wpid[i] = 0;
+  }
+  
 
   int previousPipeOutput = STDIN_FILENO;
   for (index = 0; index<comms.commandCount; index++){
@@ -341,6 +345,8 @@ int shell_multiple_execute(commands comms){
       waitpid(wpid[index], &status, WUNTRACED);
     } while (!WIFEXITED(status) && !WIFSIGNALED(status));
   }
+
+  free(wpid);
 
   return 1;
 }
@@ -389,7 +395,7 @@ void shell_loop(void){
   char *line;
   char **args;
   commands comms;
-  int status, wpid;
+  int status, wpid=0;
 
   do {
     printf("> "); // podria mostrar distintas cosas teniendo en cuenta la configuracion
