@@ -157,7 +157,7 @@ int shell_start_process(char** args, int* next_pipe, int* wpid){
 }
 
 int shell_execute(char** args, int* next_pipe, int* wpid){
-  int retorno=1, fd=-1, stdoutBackup=-1;
+  int retorno=-1, fd=-1, stdoutBackup=-1;
   if (args[0] == NULL) {
     // Se ingreso un comando vacio
     return 1;
@@ -186,17 +186,20 @@ int shell_execute(char** args, int* next_pipe, int* wpid){
   for (int i = 0; i < shell_num_builtins(); i++) {
     if (strcmp(args[0], builtin_str[i]) == 0) {
       retorno = (*builtin_func[i])(args);
-      if (fd != -1){
-        dup2(stdoutBackup, fd);
-      }
-      return retorno;
     }
+  } 
+  if (retorno==-1){
+    retorno = shell_start_process(args, next_pipe, wpid);
   }
 
-  retorno = shell_start_process(args, next_pipe, wpid);
   if (fd != -1){
-    dup2(stdoutBackup, fd);
+    close(fd);
   }
+  if (stdoutBackup != -1){
+    dup2(stdoutBackup, STDOUT_FILENO);
+    close(stdoutBackup);
+  }
+
   return retorno;
 }
 
@@ -220,6 +223,7 @@ int shell_multiple_execute(commands comms){
     } else{
       pipe(next_pipe);
     }
+    
     switch (fork()){
     case -1: // fork failure
       fprintf(stderr, "fork in shell_multiple_execute\n");
