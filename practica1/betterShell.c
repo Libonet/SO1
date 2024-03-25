@@ -235,6 +235,7 @@ int shell_multiple_execute(commands comms){
       if (next_pipe!=NULL){
         // me encargo del pipe
         dup2(next_pipe[1], STDOUT_FILENO);
+        close(next_pipe[1]);
         close(next_pipe[0]);
       }
       shell_execute(command, next_pipe, (wpid+index));
