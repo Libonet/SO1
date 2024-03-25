@@ -244,12 +244,9 @@ char** shell_split_line(char* line){
 
 
 
-int shell_start_process(char** args){
-  pid_t pid, wpid;
-  int commandCount, pipeCount, status;
-  char* arg;
-  int *pipes;
-
+int shell_start_process(char** args, int* next_pipe, int* wpid){
+  pid_t pid;
+  int status;
 
   pid = fork();
   switch (pid){
@@ -263,9 +260,14 @@ int shell_start_process(char** args){
       exit(EXIT_FAILURE);
     }
   default:
+    *wpid = pid;
     // Parent process
+    if (next_pipe!=NULL){
+      close(next_pipe[0]);
+      close(next_pipe[1]);
+    }
     do {
-      wpid = waitpid(pid, &status, WUNTRACED);
+      waitpid(pid, &status, WUNTRACED);
     } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     break;
   }
@@ -273,7 +275,7 @@ int shell_start_process(char** args){
   return 1;
 }
 
-int shell_execute(char** args){
+int shell_execute(char** args, int* next_pipe, int* wpid){
   if (args[0] == NULL) {
     // Se ingreso un comando vacio
     return 1;
@@ -285,7 +287,7 @@ int shell_execute(char** args){
     }
   }
 
-  return shell_start_process(args);
+  return shell_start_process(args, next_pipe, wpid);
 }
 
 typedef struct command_array{
@@ -296,45 +298,51 @@ typedef struct command_array{
 } commands;
 
 int shell_multiple_execute(commands comms){
-  int index;
+  int index, status;
   char** command;
+  int *next_pipe = malloc(sizeof(int)*2);
+  int* wpid = malloc(sizeof(int)*comms.commandCount);
 
-  int** pipes = malloc((comms.commandCount-1) * sizeof(int*));
-  for (int i = 0; i < comms.commandCount-1; i++)
-  {
-    pipes[i] == malloc(2*sizeof(int)); // entrada y salida del pipe
-    pipe(pipes[i]);
-  }
-  
-
+  int previousPipeOutput = STDIN_FILENO;
   for (index = 0; index<comms.commandCount; index++){
-    switch (fork())
-    {
-    case 0: // child process
-      // me encargo del pipe
-      // ejecuto (cambia completamente el proceso)
-      // exit(1);
-    
-    default:
-            
-    }
-
     command = comms.commandArray[index];
 
-    if (command[0] == NULL) {
-      // Se ingreso un comando vacio
-      return 1;
+    if (index == comms.commandCount-1){
+      free(next_pipe);
+      next_pipe = NULL;
+    } else{
+      pipe(next_pipe);
     }
-
-    for (int i = 0; i < shell_num_builtins(); i++) { // checkeamos si el comando es builtin
-      if (strcmp(args[0], builtin_str[i]) == 0) {
-        return (*builtin_func[i])(args);
+    switch (fork()){
+    case 0: // child process
+      dup2(previousPipeOutput, STDIN_FILENO);
+      if (next_pipe!=NULL){
+        // me encargo del pipe
+        dup2(next_pipe[1], STDOUT_FILENO);
+        close(next_pipe[0]);
       }
+      shell_execute(command, next_pipe, (wpid+index));
+      exit(EXIT_SUCCESS);
+    
+    default: // parent process
+      if (index!=0){
+        close(previousPipeOutput);
+      }
+      if (next_pipe){
+        close(next_pipe[1]);
+        previousPipeOutput = next_pipe[0]; // guardamos la salida para el siguiente proceso hijo
+      }
+      break;
     }
-
-    return shell_start_process(args); // intentamos ejecutar el comando a traves de execvp
   }
 
+  for (index = 0; index<comms.commandCount; index++){
+    do {
+      waitpid(wpid[index], &status, WUNTRACED);
+    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+  }
+
+  return 1;
 }
 
 // Separa una cadena de palabras en distintos comandos separados por |
@@ -351,14 +359,15 @@ commands shell_separate_commands(char** args){
     return comms;
   }
 
-  if (args[0][0]!='|'){
-    comms.commandArray[0] = args[0];
+  if (strcmp(args[0],"|")!=0){
+    comms.commandArray[0] = &args[0];
     comms.commandCount++;
   }
 
   char* arg;
   for (int index = 0; (arg = args[index]) != NULL; index++){
     if (strcmp(arg,"|")==0){
+      args[index] = NULL;
       index++;
       if (args[index] != NULL){
         if (strcmp(args[index], "|")==0){
@@ -367,18 +376,20 @@ commands shell_separate_commands(char** args){
           return comms;
         } else{
           comms.commandArray[comms.commandCount] = (args+index);
+          comms.commandCount++;
         }
       }
     }
   }
   
+  return comms;
 }
 
 void shell_loop(void){
   char *line;
   char **args;
   commands comms;
-  int status;
+  int status, wpid;
 
   do {
     printf("> "); // podria mostrar distintas cosas teniendo en cuenta la configuracion
@@ -386,9 +397,9 @@ void shell_loop(void){
     args = shell_split_line(line);
     comms = shell_separate_commands(args);
 
-    if (comms.commandCount!=0){
-      if (comms.commandCount<2){
-        status = shell_execute(args);
+    if (comms.commandCount!=0){ // Si es 0, no hay nada que ejecutar
+      if (comms.commandCount==1){
+        status = shell_execute(args, NULL, &wpid);
       } else{
         status = shell_multiple_execute(comms);
       }
