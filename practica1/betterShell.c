@@ -189,21 +189,14 @@ int shell_exit(char **args){
   return 0;
 }
 
-void remove_enter(char** line){
-  int i=0;
-  char c;
-  for (; (c=(*line)[i])!='\0'; i++) {
-    if (c=='\n'){
-      (*line)[i] = '\0';
-    }
-  }
-}
-
 char* shell_get_line(){
   char *line = NULL;
   ssize_t bufsize = 0; // getline se encarga de reservar espacio
+  ssize_t nbytes;
 
-  if (getline(&line, &bufsize, stdin) == -1){
+  nbytes = getline(&line, &bufsize, stdin);
+  if (nbytes == -1){
+    free(line);
     if (feof(stdin)) {
       exit(EXIT_SUCCESS);  // recibimos EOF
     } else  {
@@ -212,7 +205,7 @@ char* shell_get_line(){
     }
   }
 
-  remove_enter(&line);
+  line[nbytes-1] = '\0'; // pisamos el '\n'
 
   return line;
 }
@@ -249,9 +242,14 @@ char** shell_split_line(char* line){
   return args;
 }
 
+
+
 int shell_start_process(char** args){
   pid_t pid, wpid;
-  int status;
+  int commandCount, pipeCount, status;
+  char* arg;
+  int *pipes;
+
 
   pid = fork();
   switch (pid){
@@ -260,12 +258,6 @@ int shell_start_process(char** args){
     break;
   case 0:
     // Child process
-    char* str;
-    for (int i = 0; str=(args[i]); i++)
-    {
-      printf("%s ", str);
-    }
-    
     if (execvp(args[0], args) == -1) {
       fprintf(stderr, "execvp in shell_start_process\n");
       exit(EXIT_FAILURE);
@@ -282,14 +274,12 @@ int shell_start_process(char** args){
 }
 
 int shell_execute(char** args){
-  int i;
-
   if (args[0] == NULL) {
     // Se ingreso un comando vacio
     return 1;
   }
 
-  for (i = 0; i < shell_num_builtins(); i++) {
+  for (int i = 0; i < shell_num_builtins(); i++) {
     if (strcmp(args[0], builtin_str[i]) == 0) {
       return (*builtin_func[i])(args);
     }
@@ -298,28 +288,124 @@ int shell_execute(char** args){
   return shell_start_process(args);
 }
 
+typedef struct command_array{
+  char** args; // palabras separadas por espacios (todos los comandos separados por NULL)
+  int commandCount; // cantidad de comandos
+  char*** commandArray; // puntero a cada comando
+  int commandArrayCap; // tamaño reservado para commandArray
+} commands;
+
+int shell_multiple_execute(commands comms){
+  int index;
+  char** command;
+
+  int** pipes = malloc((comms.commandCount-1) * sizeof(int*));
+  for (int i = 0; i < comms.commandCount-1; i++)
+  {
+    pipes[i] == malloc(2*sizeof(int)); // entrada y salida del pipe
+    pipe(pipes[i]);
+  }
+  
+
+  for (index = 0; index<comms.commandCount; index++){
+    switch (fork())
+    {
+    case 0: // child process
+      // me encargo del pipe
+      // ejecuto (cambia completamente el proceso)
+      // exit(1);
+    
+    default:
+            
+    }
+
+    command = comms.commandArray[index];
+
+    if (command[0] == NULL) {
+      // Se ingreso un comando vacio
+      return 1;
+    }
+
+    for (int i = 0; i < shell_num_builtins(); i++) { // checkeamos si el comando es builtin
+      if (strcmp(args[0], builtin_str[i]) == 0) {
+        return (*builtin_func[i])(args);
+      }
+    }
+
+    return shell_start_process(args); // intentamos ejecutar el comando a traves de execvp
+  }
+
+}
+
+// Separa una cadena de palabras en distintos comandos separados por |
+commands shell_separate_commands(char** args){
+  commands comms;
+  comms.args = args;
+  comms.commandCount = 0;
+
+  comms.commandArrayCap = 10;
+  comms.commandArray = malloc(comms.commandArrayCap*sizeof(char**));
+  comms.commandArray[0] = NULL;
+
+  if (args[0]==NULL){
+    return comms;
+  }
+
+  if (args[0][0]!='|'){
+    comms.commandArray[0] = args[0];
+    comms.commandCount++;
+  }
+
+  char* arg;
+  for (int index = 0; (arg = args[index]) != NULL; index++){
+    if (strcmp(arg,"|")==0){
+      index++;
+      if (args[index] != NULL){
+        if (strcmp(args[index], "|")==0){
+          fprintf(stderr, "shell: syntax error near unexpected token '|'\n");
+          comms.commandCount = 0; // al salir, no se va a ejecutar nada y se libera la memoria
+          return comms;
+        } else{
+          comms.commandArray[comms.commandCount] = (args+index);
+        }
+      }
+    }
+  }
+  
+}
+
 void shell_loop(void){
   char *line;
   char **args;
+  commands comms;
   int status;
 
   do {
-    printf("> ");
+    printf("> "); // podria mostrar distintas cosas teniendo en cuenta la configuracion
     line = shell_get_line();
     args = shell_split_line(line);
-    status = shell_execute(args);
+    comms = shell_separate_commands(args);
+
+    if (comms.commandCount!=0){
+      if (comms.commandCount<2){
+        status = shell_execute(args);
+      } else{
+        status = shell_multiple_execute(comms);
+      }
+    }
 
     free(line);
     free(args);
+    free(comms.commandArray);
   } while (status);
 }
 
 int main(){
-  // TODO: cargar configuracion 
+  // TODO: cargar configuracion (y utilizarla)
 
   shell_loop();
 
-  // cleanup
+  // Limpiar antes de salir
 
   return 0;
 }
