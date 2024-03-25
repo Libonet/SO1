@@ -192,6 +192,11 @@ int shell_multiple_execute(commands comms){
       pipe(next_pipe);
     }
     switch (fork()){
+    case -1: // fork failure
+      fprintf(stderr, "fork in shell_multiple_execute\n");
+      free(wpid);
+      free(next_pipe);
+      exit(EXIT_FAILURE);
     case 0: // child process
       dup2(previousPipeOutput, STDIN_FILENO);
       if (next_pipe!=NULL){
@@ -200,6 +205,7 @@ int shell_multiple_execute(commands comms){
         close(next_pipe[0]);
       }
       shell_execute(command, next_pipe, (wpid+index));
+      free(wpid);
       exit(EXIT_SUCCESS);
     
     default: // parent process
@@ -269,7 +275,7 @@ void shell_loop(void){
   char *line;
   char **args;
   commands comms;
-  int status, wpid=0;
+  int status = 1, wpid=0;
 
   do {
     printf("> "); // podria mostrar distintas cosas teniendo en cuenta la configuracion
