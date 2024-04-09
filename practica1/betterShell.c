@@ -72,7 +72,7 @@ int shell_exit(char **args){
 
 char* shell_get_line(){
   char *line = NULL;
-  ssize_t bufsize = 0; // getline se encarga de reservar espacio
+  size_t bufsize = 0; // getline se encarga de reservar espacio
   ssize_t nbytes;
 
   nbytes = getline(&line, &bufsize, stdin);
